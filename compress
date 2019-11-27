@@ -1,0 +1,6 @@
+#!/bin/bash
+
+cd /home/ubuntu/copy-compress
+
+source env.sh
+gnome-terminal -e "bash -c 'python3 copy.py; $SHELL'" 
