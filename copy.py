@@ -36,7 +36,7 @@ def store_file_list(directory, files, name, append=False):
     directory = os.path.join(directory, 'sync/data')
     ensure_path(directory)
     filename = os.path.join(directory, name + '.txt')
-    with open(filename, mode) as f: 
+    with open(filename, mode) as f:
         for l in files:
             l = l + '\n'
             f.write(l)
@@ -60,9 +60,8 @@ def process(path, source, destination, command):
     out_path = path_woext + '.mp4'
     out_file = os.path.join(destination, out_path)
     command = command.format(in_file, out_file)
-    process = subprocess.Popen(command, stdout=subprocess.PIPE, shell=True)
+    resp = subprocess.run(command, stdout=subprocess.PIPE, shell=True, check=True, text=True)
 
-    output, error = process.communicate()
 
 
 def loop(directory):
