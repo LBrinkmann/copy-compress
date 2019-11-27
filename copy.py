@@ -12,10 +12,10 @@ DEVICE_PATH = os.environ['DEVICE_PATH']
 
 extensions = ['mov', 'mp4', 'mts']
 
-low_command = 'ffmpeg -i "{}"  -vf scale=720:480 "{}"'
+low_command = 'ffmpeg -y -i "{}"  -vf scale=720:480 "{}"'
 
 
-high_command = 'ffmpeg -i "{}" -vf scale=1080:720 "{}"'
+high_command = 'ffmpeg -y -i "{}" -vf scale=1080:720 "{}"'
 
 batch_size = 1
 
