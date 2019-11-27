@@ -143,6 +143,8 @@ if __name__ == '__main__':
         for d in DEVICE_NAMES:
             directory = os.path.join(DEVICE_PATH, d)
             if os.path.exists(directory):
+                foto_dir = os.path.join(directory, 'foto')
+                ensure_path(foto_dir)
                 print("Compression files in " + directory)
                 loop(directory)
 
