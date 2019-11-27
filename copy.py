@@ -1,17 +1,21 @@
 import os
+import random
+import sys
 from time import sleep
 import subprocess
+from shutil import copyfile
 
 
-MOVIE_FOLDER_ORIGINAL = os.environ['MOVIE_FOLDER_ORIGINAL']
-MOVIE_FOLDER_LOW = os.environ['MOVIE_FOLDER_LOW']
-MOVIE_FOLDER_HIGH = os.environ['MOVIE_FOLDER_HIGH']
-MOVIE_FOLDER_DATA = os.environ['MOVIE_FOLDER_DATA']
+
+DEVICE_NAMES = os.environ['DEVICE_NAMES'].split(',')
+DEVICE_PATH = os.environ['DEVICE_PATH']
 
 extensions = ['mov', 'mp4', 'mts']
 
-low_command = 'ffmpeg -i {} -vf scale=720:480 {}'
-high_command = 'cp {} {}'
+low_command = 'ffmpeg -i "{}"  -vf scale=720:480 "{}"'
+
+
+high_command = 'ffmpeg -i "{}" -vf scale=1080:720 "{}"'
 
 batch_size = 1
 
@@ -27,13 +31,19 @@ def list_all_files(path):
     return files
 
 
-def store_file_list(files, name, append=False):
+def store_file_list(directory, files, name, append=False):
     mode = 'w+' if append else 'w'
-    with open(MOVIE_FOLDER_DATA + '/' + name + '.txt', mode) as f:
-        f.writelines(f + '\n' for f in files)
+    directory = os.path.join(directory, 'sync/data')
+    ensure_path(directory)
+    filename = os.path.join(directory, name + '.txt')
+    with open(filename, mode) as f: 
+        for l in files:
+            l = l + '\n'
+            f.write(l)
 
-def load_file_list(name):
-    with open(MOVIE_FOLDER_DATA + '/' + name + '.txt', 'r') as f:
+def load_file_list(directory, name):
+    filename = os.path.join(directory, 'sync/data', name + '.txt')
+    with open(filename, 'r') as f:
         return [l[:-1] for l in f.readlines()]
 
 def ensure_path(directory):
@@ -50,71 +60,90 @@ def process(path, source, destination, command):
     out_path = path_woext + '.mp4'
     out_file = os.path.join(destination, out_path)
     command = command.format(in_file, out_file)
-    print(command)
-    process = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
+    process = subprocess.Popen(command, stdout=subprocess.PIPE, shell=True)
+
     output, error = process.communicate()
 
 
-def loop():
-    original_files = list_all_files(MOVIE_FOLDER_ORIGINAL)
-    low_files = list_all_files(MOVIE_FOLDER_LOW)
-    high_files = list_all_files(MOVIE_FOLDER_HIGH)
-    store_file_list(original_files, 'original')
-    store_file_list(low_files, 'low')
-    store_file_list(high_files, 'high')
+def loop(directory):
+
+    original_dir = os.path.join(directory, 'film')
+    low_dir = os.path.join(directory, 'sync/low')
+    high_dir = os.path.join(directory, 'sync/high')
+    ensure_path(original_dir)
+    ensure_path(low_dir)
+    ensure_path(high_dir)
+
+    original_files = list_all_files(original_dir)
+    # print(original_files)
+
+    low_files = list_all_files(low_dir)
+    high_files = list_all_files(high_dir)
+
+
+    store_file_list(directory, original_files, 'original')
+    store_file_list(directory, low_files, 'low')
+    store_file_list(directory, high_files, 'high')
 
     try:
-        high_requested = load_file_list('requested')
+        high_requested = load_file_list(directory, 'requested')
     except:
         high_requested = []
 
     try:
-        high_error = load_file_list('high_error')
+        high_error = load_file_list(directory, 'high_error')
     except:
         high_error = []
     try:
-        low_error = load_file_list('low_error')
+        low_error = load_file_list(directory, 'low_error')
     except:
         low_error = []
     try:
-        high_success = load_file_list('high_success')
+        high_success = load_file_list(directory, 'high_success')
     except:
         high_success = []
     try:
-        low_success = load_file_list('low_success')
+        low_success = load_file_list(directory, 'low_success')
     except:
         low_success = []
 
     high_batch = list(set(high_requested) - set(high_success) - set(high_error))
+    # random.shuffle(high_batch)
+
     for path in high_batch:
         try:
-            process(path, MOVIE_FOLDER_ORIGINAL, MOVIE_FOLDER_HIGH, high_command)
+            process(path, original_dir, high_dir, high_command)
             high_success = high_success + [path]
-            store_file_list(high_success, 'high_success')
+            store_file_list(directory, high_success, 'high_success')
+            print('Successfully compressed (high)' + path)
         except:
             high_error = high_error + [path]
-            store_file_list(high_error, 'high_error')
+            print('Error compressing (high)' + path)
+            store_file_list(directory, high_error, 'high_error')
+            # raise Error('HELP')
 
-    low_batch = list(set(original_files) - set(low_success) - set(low_error))[:batch_size]
-    # print(original_files, low_success, low_error, low_batch)
+    low_batch = list(set(original_files) - set(low_success) - set(low_error))
+    # random.shuffle(low_batch)
 
-    for path in low_batch:
+    for path in low_batch[:batch_size]:
         try:
-            process(path, MOVIE_FOLDER_ORIGINAL, MOVIE_FOLDER_LOW, low_command)
+            process(path, original_dir, low_dir, low_command)
             low_success = low_success + [path]
-            # print("HDHHHHHHHH", low_success)
-            store_file_list(low_success, 'low_success')
+            store_file_list(directory, low_success, 'low_success')
+            print('Successfully compressed (low)' + path)
         except:
             low_error = low_error + [path]
-            store_file_list(low_error, 'low_error')
+            print('Error compressing (low)' + path)
+            store_file_list(directory, low_error, 'low_error')
 
     sleep(2)
     print('Finished Loop')
 
 if __name__ == '__main__':
-    ensure_path(MOVIE_FOLDER_DATA)
-    ensure_path(MOVIE_FOLDER_ORIGINAL)
-    ensure_path(MOVIE_FOLDER_LOW)
-    ensure_path(MOVIE_FOLDER_HIGH)
     while True:
-        loop()
+        for d in DEVICE_NAMES:
+            directory = os.path.join(DEVICE_PATH, d)
+            if os.path.exists(directory):
+                print("Compression files in " + directory)
+                loop(directory)
+
