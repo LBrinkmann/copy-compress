@@ -17,6 +17,8 @@ low_command = 'ffmpeg -y -i "{}"  -vf scale=720:480 "{}"'
 
 high_command = 'ffmpeg -y -i "{}" -vf scale=1080:720 "{}"'
 
+high_command = 'mv "{}" "{}"'
+
 batch_size = 1
 
 
